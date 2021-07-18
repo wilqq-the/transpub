@@ -20,6 +20,7 @@ try:
       LAT   DECIMAL     NOT NULL,
       LON   DECIMAL     NOT NULL,
       OPOZNIENIE    DECIMAL NOT NULL,
+      TYP TEXT NOT NULL,
       time_stamp timestamp with time zone)''')
 except psycopg2.errors.DuplicateTable:
     print("Table already exists")
@@ -48,11 +49,19 @@ for index,item in enumerate(parse_json):
         do = "Puste" if len(str(item['do'])) < 1 else str(item['do'])
         lat = str(item['lat'])
         lon = str(item['lon'])
+        if(item['typlinii'] == 'anz'):
+            typ = 'nocny'
+        else:
+            typ = 'dzienny'
+
         opoznienie = str(item['punktualnosc2']).replace('&minus;','-')
+        
+        con = psycopg2.connect(database="postgres", user="postgres", password="root", host="127.0.0.1", port="5432")
+
         cur = con.cursor()
 
-        cur.execute(f"""INSERT INTO buses (VEH_ID,GMVID,LINIA,KIERUNEK,Z,W_KIERUNKU,LAT,LON,OPOZNIENIE,time_stamp)
-                        VALUES ({veh_id},{gmvid},'{linia}','{kierunek}','{z}','{do}',{lat},{lon},{opoznienie},'{dt}')
+        cur.execute(f"""INSERT INTO buses (VEH_ID,GMVID,LINIA,KIERUNEK,Z,W_KIERUNKU,LAT,LON,OPOZNIENIE,TYP,time_stamp)
+                        VALUES ({veh_id},{gmvid},'{linia}','{kierunek}','{z}','{do}',{lat},{lon},{opoznienie},'{typ}','{dt}')
                         ON CONFLICT (VEH_ID)
                         DO UPDATE SET 
                             LINIA = EXCLUDED.linia, 
@@ -62,6 +71,7 @@ for index,item in enumerate(parse_json):
                             LAT = EXCLUDED.lat,
                             LON = EXCLUDED.lon,
                             OPOZNIENIE = EXCLUDED.opoznienie,
+                            TYP = EXCLUDED.typ,
                             time_stamp = EXCLUDED.time_stamp""");
         
         con.commit()
@@ -69,6 +79,8 @@ for index,item in enumerate(parse_json):
         #Print for log from Crontab (timestamp + vehicle ID)
 
         print(f"{dt} : Record inserted successfully. - GMVID: {veh_id}")
+        #Uncomment for vehicle values logging
+        #print(item)
 
         con.close()
 
